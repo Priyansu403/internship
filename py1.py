@@ -1,54 +1,125 @@
 from pathlib import Path
 import shutil
+import logging
 
-# File categories
+# ==========================
+# LOGGING CONFIGURATION
+# ==========================
+logging.basicConfig(
+    filename="organizer.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# ==========================
+# FILE CATEGORIES
+# ==========================
 CATEGORIES = {
     ".py": "Python_Code",
     ".java": "Java_Code",
     ".js": "JavaScript",
+
     ".txt": "Documents",
-    ".csv": "Documents",
     ".pdf": "Documents",
-    ".html": "Documents",
+    ".docx": "Documents",
+    ".csv": "Documents",
+
     ".jpg": "Images",
-    ".png": "Images"
+    ".jpeg": "Images",
+    ".png": "Images",
+    ".gif": "Images",
+
+    ".mp3": "Audio",
+    ".wav": "Audio",
+
+    ".mp4": "Videos",
+    ".avi": "Videos",
+
+    ".zip": "Archives",
+    ".rar": "Archives"
 }
 
-# CHANGE THIS TO YOUR FOLDER
-SOURCE_FOLDER = r"C:\Users\HP\Desktop\testfolder\Documents"
 
-source = Path(SOURCE_FOLDER)
+# ==========================
+# HANDLE DUPLICATE FILES
+# ==========================
+def get_unique_name(target_path):
+    count = 1
 
-if not source.exists():
-    print("Folder does not exist!")
-    exit()
+    while target_path.exists():
+        new_name = f"{target_path.stem}({count}){target_path.suffix}"
+        target_path = target_path.parent / new_name
+        count += 1
 
-print(f"\nScanning Folder: {source}\n")
+    return target_path
 
-files_found = False
 
-for file in source.iterdir():
+# ==========================
+# ORGANIZE FILES
+# ==========================
+def organize_directory(source_folder):
 
-    if file.is_file():
+    source = Path(source_folder)
 
-        files_found = True
+    if not source.exists():
+        print("Folder not found!")
+        return
 
-        print("Found:", file.name)
+    moved_files = 0
+    errors = 0
 
-        ext = file.suffix.lower()
+    print(f"\nScanning Folder: {source}\n")
 
-        category = CATEGORIES.get(ext, "Other")
+    for item in source.rglob("*"):
 
-        target_folder = source / category
-        target_folder.mkdir(exist_ok=True)
+        try:
+            if item.is_dir() or item.is_symlink():
+                continue
 
-        target_file = target_folder / file.name
+            extension = item.suffix.lower()
 
-        shutil.move(str(file), str(target_file))
+            category = CATEGORIES.get(extension, "Other")
 
-        print(f"Moved -> {category}")
+            target_dir = source / category
+            target_dir.mkdir(exist_ok=True)
 
-if not files_found:
-    print("No files found in TestFolder!")
+            target_file = target_dir / item.name
 
-print("\nCompleted Successfully!")
+            target_file = get_unique_name(target_file)
+
+            shutil.move(str(item), str(target_file))
+
+            print(f"Moved: {item.name} --> {category}")
+
+            logging.info(
+                f"Moved {item} to {target_file}"
+            )
+
+            moved_files += 1
+
+        except PermissionError:
+            print(f"Permission Denied: {item}")
+            logging.error(f"Permission Denied: {item}")
+            errors += 1
+
+        except Exception as e:
+            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
+            errors += 1
+
+    print("\n" + "=" * 40)
+    print("SUMMARY REPORT")
+    print("=" * 40)
+    print("Files Moved :", moved_files)
+    print("Errors      :", errors)
+
+
+# ==========================
+# MAIN PROGRAM
+# ==========================
+if __name__ == "__main__":
+
+    # CHANGE THIS PATH
+    source_folder = r"C:\Users\HP\Desktop\TestFolder"
+
+    organize_directory(source_folder)
